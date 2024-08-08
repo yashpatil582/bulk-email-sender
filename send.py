@@ -13,17 +13,20 @@ import ssl
 
 
 def get_msg(csv_file_path, template):
-    with open(csv_file_path, "r") as file:
-        headers = file.readline().split(",")
-        headers[len(headers) - 1] = headers[len(headers) - 1][:-1]
-    # i am opening the csv file two times above and below INTENTIONALLY, changing will cause error
-    with open(csv_file_path, "r") as file:
+    with open(csv_file_path, "r", encoding="utf-8-sig") as file:
+        headers = [header.strip() for header in file.readline().strip().split(",")]
+    print(f"Headers: {headers}")  # Debug statement
+    
+    with open(csv_file_path, "r", encoding="utf-8-sig") as file:
         data = csv.DictReader(file)
         for row in data:
+            print(f"Row: {row}")  # Debug statement
             required_string = template
             for header in headers:
-                value = row[header]
+                value = row[header].strip()
+                print(f"Replacing ${header} with {value}")  # Debug statement
                 required_string = required_string.replace(f"${header}", value)
+            print(f"Sending to {row['EMAIL']} with message: {required_string}")  # Debug statement
             yield row["EMAIL"], required_string
 
 
@@ -32,10 +35,9 @@ def confirm_attachments():
     file_names = []
     try:
         for filename in os.listdir("ATTACH"):
-
             entry = input(
-                f"""TYPE IN 'Y' AND PRESS ENTER IF YOU CONFIRM T0 ATTACH {filename}
-                                    TO SKIP PRESS ENTER: """
+                f"""TYPE IN 'Y' AND PRESS ENTER IF YOU CONFIRM TO ATTACH {filename}
+                TO SKIP PRESS ENTER: """
             )
             confirmed = True if entry == "Y" else False
             if confirmed:
@@ -66,10 +68,7 @@ def send_emails(server: SMTP, template, is_html):
         multipart_msg["To"] = receiver
 
         text = message
-        if not is_html:
-            html = markdown.markdown(text)
-        else:
-            html = text
+        html = markdown.markdown(text)
 
         part1 = MIMEText(text, "plain")
         part2 = MIMEText(html, "html")
@@ -90,7 +89,7 @@ def send_emails(server: SMTP, template, is_html):
         try:
             server.sendmail(SENDER_EMAIL, receiver, multipart_msg.as_string())
         except Exception as err:
-            print(f"Problem occurend while sending to {receiver} ")
+            print(f"Problem occurred while sending to {receiver}")
             print(err)
             input("PRESS ENTER TO CONTINUE")
         else:
@@ -100,8 +99,8 @@ def send_emails(server: SMTP, template, is_html):
 
 
 if __name__ == "__main__":
-    host = "smtppro.zoho.in"
-    port = 587  # TLS replaced SSL in 1999
+    host = "smtp.gmail.com"
+    port = 587  # TLS
 
     is_html = MAIL_COMPOSE.endswith("html")
 
@@ -113,15 +112,9 @@ if __name__ == "__main__":
     server = SMTP(host=host, port=port)
     server.connect(host=host, port=port)
     server.ehlo()
-    # server.starttls(context=context)
-    server.starttls()
+    server.starttls(context=context)
     server.ehlo()
     server.login(user=SENDER_EMAIL, password=PASSWORD)
     print(SENDER_EMAIL, PASSWORD)
 
-    # with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-    #     server.login(SENDER_EMAIL, PASSWORD)
     send_emails(server, template, is_html)
-
-
-# AAHNIK 2023
